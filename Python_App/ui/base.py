@@ -1,8 +1,12 @@
-from .navbar import navbar_page
+from .navbar import base_navbar
+from .footer import base_footer
 import reflex as rx
 def base_layout(*args, **kwargs) -> rx.Component:
     return rx.container(
-        navbar_page("navbar"),
-        *args, **kwargs
+        base_navbar(),
+        rx.fragment(*args, 
+                    **kwargs
+        ),
+        base_footer(), 
 
     )

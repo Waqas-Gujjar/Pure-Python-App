@@ -1,0 +1,3 @@
+HOME_ROUTES = "/"
+ABOUT_AS_ROUTES = "/about"
+CHAT_PAGE_ROUTES = "/chat"
