@@ -1,11 +1,14 @@
 import reflex as rx
-import asyncio
+# import asyncio
 from typing import List
+
+from . import ai
 
 
 class ChatMessage(rx.Base):
     message : str
     is_bot = False
+
 
 
 class ChatState(rx.State):
@@ -14,6 +17,24 @@ class ChatState(rx.State):
     @rx.var
     def user_did_submit(self) -> bool:
         return self.did_submit
+    
+    def get_gpt_message(self):
+        gpt_messages = [
+            {
+                'role' : "user",
+                "content" :" your are expert in python "
+             }
+        ]
+
+        for chat_message in self.messages:
+            role = "user"
+            if chat_message.is_bot:
+                role = "system"
+            gpt_messages.append({
+                "role": role,
+                "content": chat_message.message,
+            })
+            return gpt_messages
     
     def append_message(self, message,is_boot : bool=False) :
         self.messages.append (ChatMessage(
@@ -28,9 +49,11 @@ class ChatState(rx.State):
             self.did_submit = True
             self.append_message(user_message,is_boot=False)
             yield
-            await asyncio.sleep(2)  # simulate network delay
+            gpt_message = self.get_gpt_message()
+            bot_response = ai.get_llm_response(gpt_message)
+            # await asyncio.sleep(2)  # simulate network delay
             self.did_submit = False
-            self.append_message(user_message,is_boot=True)
+            self.append_message(bot_response,is_boot=True)
             yield
 
         
