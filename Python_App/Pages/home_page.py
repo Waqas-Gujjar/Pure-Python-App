@@ -4,7 +4,7 @@ import reflex as rx
 from  Python_App import ui
 from rxconfig import config
 
-def home_page() -> rx.Component:
+def home() -> rx.Component:
     # Welcome Page (Index)
     return ui.base_layout(
         rx.color_mode.button(position="top-right"),
