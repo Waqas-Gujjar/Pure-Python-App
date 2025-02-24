@@ -1,7 +1,7 @@
 from typing import List
 import reflex as rx
 from . import ai
-
+from Python_App.model import ChatSession as ChatModel
 
 class ChatMessage(rx.Base):
     """Represents a single chat message in the conversation."""
@@ -16,10 +16,20 @@ class ChatState(rx.State):
     did_submit: bool = False  # Whether the user has submitted a message
     messages: List[ChatMessage] = []  # List of chat messages
 
+
+    
+
     @rx.var
     def user_did_submit(self) -> bool:
         """Check if the user has submitted a message."""
         return self.did_submit
+    
+    def on_load(self):
+        with rx.session() as session:
+            result = session.exec(
+                ChatModel.select()
+            ).all
+            print(result)
 
     def get_gpt_message(self):
         """
@@ -47,14 +57,21 @@ class ChatState(rx.State):
         return gpt_messages
 
     def append_message(self, message: str, is_bot: bool = False) -> None:
-        """
-        Add a new message to the chat history.
+    #   if not is_bot:
+    #         with rx.session() as session:
+    #             obj = ChatModel(
+    #                     tittle = message,
+    #         )
+    #             session.add(obj)
+    #             session.commit()
 
+      """
+        Add a new message to the chat history.
         Args:
             message: The text content of the message.
             is_bot: True if the message is from the bot, False if from the user.
         """
-        self.messages.append(ChatMessage(message=message, is_bot=is_bot))
+      self.messages.append(ChatMessage(message=message, is_bot=is_bot))
 
     async def handler_submitted(self, form_data: dict):
         """
