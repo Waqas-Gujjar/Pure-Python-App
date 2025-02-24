@@ -1,18 +1,22 @@
 from decouple import config
-from openai import OpenAI
+from groq import Groq
 
-OPENAI_API_KEY = config("OPENAI_API_KEY", default=None)
-OPENAI_MODEL = "gpt-4o-mini"
+GROQ_API_KEY = config("GROQ_API_KEY", default=None)
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
 
 def get_client():
-    return OpenAI(api_key=OPENAI_API_KEY)
+    return Groq(api_key=GROQ_API_KEY)
 
 
 def get_llm_response(gpt_message):
     client = get_client()
+    print("Sending messages to Groq API:", gpt_message)  # Debugging
     completion = client.chat.completions.create(
-        model=OPENAI_MODEL,
+        model=GROQ_MODEL,
         messages=gpt_message
     )
-    return completion.choice[0].messages.content
+    print("Received response from Groq API:", completion)  # Debugging
+    return completion.choices[0].message.content
+
+
