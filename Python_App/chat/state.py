@@ -20,14 +20,27 @@ class ChatState(rx.State):
     def user_did_submit(self) -> bool:
         """Check if the user has submitted a message."""
         return self.did_submit
-
-    def on_load(self):
-        """Initialize a new chat session when the page loads."""
+    def create_new_chat_session(self):
         with rx.session() as db_session:
             obj = ChatSession()
             db_session.add(obj)
             db_session.commit()
             self.chat_session_id = obj.id  # Store only the ID
+ 
+    def clear_and_start_new_chat(self):
+        """Clear the chat state and start a new chat."""
+        self.chat_session_id = None
+        self.create_new_chat_session()
+        self.messages = []
+        yield
+
+        
+
+
+    def on_load(self):
+        """Initialize a new chat session when the page loads."""
+        self.create_new_chat_session()
+        
 
     def insert_message_into_db(self, content, role="unknown"):
         """Insert a new message into the database."""
