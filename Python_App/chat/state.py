@@ -1,105 +1,154 @@
-from typing import List
+# import time
 import reflex as rx
-from . import ai
+import sqlmodel
+
+from typing import List, Optional
 from Python_App.model import ChatSession, ChatSessionMessageModel
 
+from . import ai
 
 class ChatMessage(rx.Base):
-    """Represents a single chat message in the conversation."""
-    message: str  # The content of the message
-    is_bot: bool = False  # Whether the message is from the bot
+    message: str
+    is_bot: bool = False
 
 
 class ChatState(rx.State):
-    """Manages the chat state, including user and bot messages."""
-    chat_session_id: int = None  # Store only the ID
-    did_submit: bool = False  # Whether the user has submitted a message
-    messages: List[ChatMessage] = []  # List of chat messages
+    chat_session: ChatSession = None
+    not_found: Optional[bool] = None
+    did_submit: bool = False
+    messages: List[ChatMessage] = []
 
     @rx.var
     def user_did_submit(self) -> bool:
-        """Check if the user has submitted a message."""
         return self.did_submit
+    
+    def get_session_id(self) -> int:
+        try:
+            my_session_id = int(self.router.page.params.get('session_id'))
+        except:
+            my_session_id = None
+        return my_session_id
+    
     def create_new_chat_session(self):
         with rx.session() as db_session:
             obj = ChatSession()
-            db_session.add(obj)
-            db_session.commit()
-            self.chat_session_id = obj.id  # Store only the ID
- 
-    def clear_and_start_new_chat(self):
-        """Clear the chat state and start a new chat."""
-        self.chat_session_id = None
-        self.create_new_chat_session()
+            db_session.add(obj) # prepare to save
+            db_session.commit() # actually save
+            db_session.refresh(obj)
+            self.chat_session = obj
+            return obj
+
+    def clear_ui(self):
+        self.chat_session = None
+        self.not_found = None
+        self.did_submit = False
         self.messages = []
+
+    def create_new_and_redirect(self):
+        self.clear_ui()
+        new_chat_session = self.create_new_chat_session()
+        return rx.redirect(f"/chat/{new_chat_session.id}")
+
+    def clear_and_start_new(self):
+        self.clear_ui()
+        self.create_new_chat_session()
         yield
 
-        
+    def get_session_from_db(self, session_id=None):
+        if session_id is None:
+            session_id = self.get_session_id()
+        # ChatSession.id == session_id
+        with rx.session() as db_session:
+            sql_statement = sqlmodel.select(
+                ChatSession
+            ).where(
+                ChatSession.id == session_id
+            )
+            result = db_session.exec(sql_statement).one_or_none()
+            if result is None:
+                self.not_found = True
+            else:
+                self.not_found = False
+            self.chat_session = result
+            messages = result.messages
+            for msg_obj in messages:
+                msg_txt = msg_obj.content
+                is_bot = False if msg_obj.role == "user" else True
+                self.append_message_to_ui(msg_txt, is_bot=is_bot)
+            
+    
+    def on_detail_load(self):
+        session_id = self.get_session_id()
+        reload_detail = False
+        if not self.chat_session:
+            reload_detail = True
+        else:
+            """has a session"""
+            if self.chat_session.id != session_id:
+                reload_detail = True
 
+        if reload_detail:
+            self.clear_ui()
+            if isinstance(session_id, int):
+                self.get_session_from_db(session_id=session_id)
 
     def on_load(self):
-        """Initialize a new chat session when the page loads."""
+        print("running on load")
+        self.clear_ui()
         self.create_new_chat_session()
-        
 
-    def insert_message_into_db(self, content, role="unknown"):
-        """Insert a new message into the database."""
-        if not hasattr(self, 'chat_session_id') or self.chat_session_id is None:
+    def insert_message_to_db(self, content, role='unknown'):
+        print("insert message data to db")
+        if self.chat_session is None:
             return
-
+        if not isinstance(self.chat_session, ChatSession):
+            return 
         with rx.session() as db_session:
-            chat_session = db_session.query(ChatSession).get(self.chat_session_id)
-            if chat_session is None:
-                return
-
             data = {
-                "session_id": chat_session.id,
+                "session_id": self.chat_session.id,
                 "content": content,
                 "role": role
             }
             obj = ChatSessionMessageModel(**data)
-            db_session.add(obj)
-            db_session.commit()
+            db_session.add(obj) # prepare to save
+            db_session.commit() # actually save
 
-    def get_gpt_message(self):
-        """Prepare chat history in a format suitable for the Groq API."""
+    def append_message_to_ui(self, message, is_bot:bool=False):
+        self.messages.append(
+            ChatMessage(
+                message=message,
+                is_bot = is_bot
+            )
+        )
+    
+    def get_gpt_messages(self):
         gpt_messages = [
             {
                 "role": "system",
                 "content": "You are an expert at creating recipes like an elite chef. Respond in markdown"
             }
         ]
-
         for chat_message in self.messages:
-            role = "user"
+            role = 'user'
             if chat_message.is_bot:
-                role = "system"
+                role = 'system'
             gpt_messages.append({
                 "role": role,
                 "content": chat_message.message
             })
-
         return gpt_messages
 
-    def append_message_to_ui(self, message: str, is_bot: bool = False) -> None:
-        """Add a new message to the chat history."""
-        self.messages.append(ChatMessage(message=message, is_bot=is_bot))
-
-    async def handler_submitted(self, form_data: dict):
-        """Handle form submission and generate AI response."""
-        user_message = form_data.get("message")
+    async def handle_submit(self, form_data:dict):
+        print('here is our form data', form_data)
+        user_message = form_data.get('message')
         if user_message:
             self.did_submit = True
-            self.append_message_to_ui(user_message, is_bot=False)  # Add to UI
-            self.insert_message_into_db(user_message, role="user")  # Insert into DB
-            yield  # Yield to update the UI
-
-            # Get AI response
-            gpt_message = self.get_gpt_message()
-            bot_response = ai.get_llm_response(gpt_message)
-            print("Bot response:", bot_response)
-
+            self.append_message_to_ui(user_message, is_bot=False)
+            self.insert_message_to_db(user_message, role='user')
+            yield
+            gpt_messages = self.get_gpt_messages()
+            bot_response = ai.get_llm_response(gpt_messages)
             self.did_submit = False
-            self.append_message_to_ui(bot_response, is_bot=True)  # Add to UI
-            self.insert_message_into_db(bot_response, role="system")  # Insert into DB
-            yield  # Yield to update the UI
+            self.append_message_to_ui(bot_response, is_bot=True)
+            self.insert_message_to_db(bot_response, role='system')
+            yield
