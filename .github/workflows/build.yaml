@@ -42,7 +42,7 @@ jobs:
       run: |
          cat << EOF > .build-env
          GROQ_API_KEY = ${{secrets.GROQ_API_KEY}}
-         DATABASE_URL=${{ secrets.DATABASE_URL }}
+         DATABASE_URL=${{ secrets.NEON_DATABASE_URL }}
          EOF
 
     - name: Build and push
