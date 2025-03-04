@@ -16,9 +16,9 @@ on:
       - .github/workflows/build.yaml
 
 env:
-  # DOCKER_IMAGE: waqas121/reflex-gpt  
-  # uncomment if using
-DOCKER_IMAGE: ${{ secrets.DOCKERHUB_REPO }}
+  # DOCKER_IMAGE: waqas121/reflex-gpt
+  # uncomment if using 
+  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_REPO }}
 
 jobs:
   build-and-push:
@@ -41,8 +41,8 @@ jobs:
     - name: Create build env file
       run: |
          cat << EOF > .build-env
-         GROQ_API_KEY = ${{secrets.GROQ_API_KEY}}
-         DATABASE_URL=${{ secrets.NEON_DATABASE_URL }}
+         OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+         DATABASE_URL=${{ secrets.DATABASE_URL }}
          EOF
 
     - name: Build and push
