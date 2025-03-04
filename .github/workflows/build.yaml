@@ -16,7 +16,7 @@ on:
       - .github/workflows/build.yaml
 
 env:
-  DOCKER_IMAGE: codingforentrepreneurs/reflex-gpt
+  DOCKER_IMAGE: waqas121/reflex-gpt
   # uncomment if using 
   # DOCKER_IMAGE: ${{ secrets.DOCKERHUB_REPO }}
 
