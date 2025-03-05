@@ -40,6 +40,10 @@ USER reflex
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Set environment variable
+ARG NEON_DATABASE_URL
+ENV NEON_DATABASE_URL=${NEON_DATABASE_URL}
+
 # Initialize Reflex
 RUN reflex init
 
